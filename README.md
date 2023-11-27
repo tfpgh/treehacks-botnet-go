@@ -1,6 +1,8 @@
 # treehacks-botnet-go
 
-Following [TreeHacks/botnet-hackpack](https://github.com/TreeHacks/botnet-hackpack) as my first project in [go](https://go.dev/).
+Recreating [TreeHacks/botnet-hackpack](https://github.com/TreeHacks/botnet-hackpack) in [go](https://go.dev/) as my first project in the language.
+
+The original project just includes a binary for the master. I'm rewriting both the bot and master here.
 
 ## pre-commit
 

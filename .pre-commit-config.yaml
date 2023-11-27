@@ -9,8 +9,8 @@ repos:
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: forbid-new-submodules
-  - repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.1
+  - repo: https://github.com/tekwizely/pre-commit-golang
+    rev: v1.0.0-rc.1
     hooks:
       - id: go-fmt
       - id: go-vet

